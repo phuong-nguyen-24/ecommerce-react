@@ -1,30 +1,36 @@
 import {
+  Alert,
+  AlertTitle,
   Box,
   Button,
+  CircularProgress,
   Container,
   Grid,
   MenuItem,
   TextField,
   Typography,
 } from "@mui/material";
-import NumericFormatCustom from "../components/NumericFormatCustom";
-import {
-  useMutation,
-  useQueries,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import supabase from "../../../config/supbase";
-import { useForm } from "react-hook-form";
-import { convertPrice } from "../helpers/price";
+import { Controller, useForm } from "react-hook-form";
 import RHFSelect from "../../common/components/RHFSelect";
 import ProductLoading from "./ProductLoading";
+import { Link } from "react-router-dom";
+import { NumericFormat } from "react-number-format";
+import FormErrorMessage from "../../common/components/FormErrorMessage";
+import { productSchema } from "../vaildations/productVaildation";
+import { yupResolver } from "@hookform/resolvers/yup";
+import useSelectQueries from "../hooks/useSelectQueries";
+import useAddProduct from "../hooks/useAddProduct";
+import useUploadFileMutation from "../hooks/useUploadFileMutation";
+import { checkLoadingState } from "../../common/helpers/loading";
 
 export default function ProductAdd() {
   const {
     register,
     handleSubmit,
     watch,
+    reset,
     control,
     formState: { errors },
   } = useForm({
@@ -34,44 +40,27 @@ export default function ProductAdd() {
       description: "",
       category_id: "",
       brand_id: "",
+      imageFile: null,
     },
+    resolver: yupResolver(productSchema),
   });
 
   const queryClient = useQueryClient();
 
-  const [categoryQuery, brandQuery] = useQueries({
-    queries: [
-      {
-        queryKey: ["categories"],
-        queryFn: () => supabase.from("category").select(),
-        select: (res) => res.data,
-      },
-      {
-        queryKey: ["brands"],
-        queryFn: () => supabase.from("brand").select(),
-        select: (res) => res.data,
-      },
-    ],
+  const [categoryQuery, brandQuery] = useSelectQueries();
+
+  const addProductMutation = useAddProduct({
+    onSuccess: () => reset(),
   });
 
-  const addProductMutation = useMutation({
-    mutationFn: (newProduct) => supabase.from("product").insert(newProduct),
-  });
+  const uploadFileMutation = useUploadFileMutation();
 
-  const uploadFileMutation = useMutation({
-    mutationFn: ({ category, file }) =>
-      supabase.storage
-        .from("ecommerce")
-        .upload(`${category}/${file.name}`, file, {
-          cacheControl: "3600",
-          upsert: false,
-        }),
-    select: (res) => {},
-  });
+  const isLoading = checkLoadingState([categoryQuery, brandQuery]);
 
-  const isLoading = [categoryQuery, brandQuery].some(
-    (query) => query.isLoading
-  );
+  const isProductUploading = checkLoadingState([
+    addProductMutation,
+    uploadFileMutation,
+  ]);
 
   async function handleAddProduct(data) {
     const categories = queryClient.getQueryData({
@@ -93,7 +82,6 @@ export default function ProductAdd() {
 
     addProductMutation.mutate({
       ...product,
-      price: convertPrice(data.price),
       thumbnail: thumbnail.publicUrl,
     });
   }
@@ -117,26 +105,52 @@ export default function ProductAdd() {
         >
           Add new product
         </Typography>
+        {addProductMutation.isSuccess && (
+          <Alert severity="success" sx={{ marginBottom: 4 }}>
+            <AlertTitle>Success</AlertTitle>
+            Added product successfully—{" "}
+            <Link to={"/product/"}>check it out!</Link>
+          </Alert>
+        )}
         <Grid container spacing={3}>
           <Grid item xs={12} sm={6}>
             <TextField
               label="Title"
               variant="outlined"
-              inputProps={{ inputMode: "numeric", pattern: "[0-9]*" }}
               fullWidth
+              disabled={isProductUploading}
               {...register("title")}
             />
+            {errors.title && (
+              <FormErrorMessage>{errors.title.message}</FormErrorMessage>
+            )}
           </Grid>
           <Grid item xs={12} sm={6}>
-            <TextField
-              label="Price"
-              InputProps={{
-                inputComponent: NumericFormatCustom,
-              }}
-              variant="outlined"
-              fullWidth
-              {...register("price")}
+            <Controller
+              render={({ field: { onChange, onBlur, value, ref } }) => (
+                <NumericFormat
+                  customInput={TextField}
+                  allowNegative={false}
+                  onValueChange={(v) => {
+                    onChange(v.floatValue);
+                  }}
+                  prefix="$"
+                  fullWidth
+                  label="Price"
+                  fixedDecimalScale
+                  thousandSeparator
+                  inputRef={ref}
+                  value={value}
+                  onBlur={onBlur}
+                  disabled={isProductUploading}
+                />
+              )}
+              name="price"
+              control={control}
             />
+            {errors.price && (
+              <FormErrorMessage>{errors.price.message}</FormErrorMessage>
+            )}
           </Grid>
           <Grid item xs={12}>
             <TextField
@@ -144,48 +158,89 @@ export default function ProductAdd() {
               multiline
               rows={6}
               fullWidth
+              disabled={isProductUploading}
               {...register("description")}
             />
+            {errors.description && (
+              <FormErrorMessage>{errors.description.message}</FormErrorMessage>
+            )}
           </Grid>
           <Grid item xs={12} sm={6}>
-            <RHFSelect name="category_id" label="Category" control={control}>
+            <RHFSelect
+              name="category_id"
+              label="Category"
+              control={control}
+              disabled={isProductUploading}
+            >
               {categoryQuery.data.map((category) => (
                 <MenuItem key={category.name} value={category.id}>
                   {category.description}
                 </MenuItem>
               ))}
             </RHFSelect>
+            {errors.category_id && (
+              <FormErrorMessage>{errors.category_id.message}</FormErrorMessage>
+            )}
           </Grid>
           <Grid item xs={12} sm={6}>
-            <RHFSelect name="brand_id" label="Brand" control={control}>
+            <RHFSelect
+              name="brand_id"
+              label="Brand"
+              control={control}
+              disabled={isProductUploading}
+            >
               {brandQuery.data.map((brand) => (
                 <MenuItem key={brand.name} value={brand.id}>
                   {brand.description}
                 </MenuItem>
               ))}
             </RHFSelect>
+            {errors.brand_id && (
+              <FormErrorMessage>{errors.brand_id.message}</FormErrorMessage>
+            )}
           </Grid>
           <Grid item xs={12}>
-            <Button
-              variant="contained"
-              color="success"
-              component="label"
-              fullWidth
-            >
-              Upload Image
-              <input
-                hidden
-                accept="image/*"
-                multiple
-                type="file"
-                {...register("imageFile")}
-              />
-            </Button>
+            <Box>
+              <Button
+                variant="contained"
+                color="success"
+                component="label"
+                fullWidth
+                disabled={isProductUploading}
+              >
+                Upload Image
+                <input
+                  hidden
+                  accept="image/*"
+                  multiple
+                  type="file"
+                  {...register("imageFile")}
+                />
+              </Button>
+              {watch("imageFile") && (
+                <Typography>{watch("imageFile")[0].name}</Typography>
+              )}
+              {errors.imageFile && (
+                <FormErrorMessage>{errors.imageFile.message}</FormErrorMessage>
+              )}
+            </Box>
           </Grid>
 
           <Grid item xs={12}>
-            <Button variant="contained" type="submit" fullWidth>
-              Add
+            <Button
+              variant="contained"
+              type="submit"
+              fullWidth
+              disabled={isProductUploading}
+              startIcon={
+                isProductUploading && <CircularProgress color="inherit" />
+              }
+            >
+              {uploadFileMutation.isLoading
+                ? "Uploading photo...."
+                : addProductMutation.isLoading
+                ? "Adding..."
+                : "Add"}
             </Button>
           </Grid>
         </Grid>

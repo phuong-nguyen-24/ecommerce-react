@@ -11,7 +11,6 @@ import ProductListingToolbar from "../components/ProductListingToolbar";
 import ProductLoading from "../components/ProductLoading";
 import ProductAction from "../components/ProductAction";
 
-
 export default function ProductListing() {
   const {
     isLoading,
@@ -34,10 +33,7 @@ export default function ProductListing() {
     },
   });
 
-  if (isLoading)
-    return (
-      <ProductLoading />
-    );
+  if (isLoading) return <ProductLoading />;
 
   const gridData = {
     columns: [
@@ -144,16 +140,19 @@ export default function ProductListing() {
           return (
             <Stack direction="row" alignItems="center">
               <Tooltip title="View Detail" placement="top">
-                <IconButton aria-label="View Detail" to={`/products/${param.id}`}>
+                <IconButton
+                  aria-label="View Detail"
+                  to={`/products/${param.id}`}
+                >
                   <InfoIcon />
                 </IconButton>
               </Tooltip>
               <Tooltip title="Edit" placement="top">
-                <IconButton aria-label="Edit" to={"products/edit"}>
+                <IconButton aria-label="Edit">
                   <EditIcon />
                 </IconButton>
               </Tooltip>
-              <ProductAction id={param.id}/>
+              <ProductAction id={param.id} />
             </Stack>
           );
         },
