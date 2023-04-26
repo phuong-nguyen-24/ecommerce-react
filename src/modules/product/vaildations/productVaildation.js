@@ -11,7 +11,8 @@ export const productSchema = yup
       .number()
       .typeError("Price is required")
       .required("Price is required")
-      .positive("Number must be positive").max(500000, "price must be "),
+      .positive("Number must be positive")
+      .max(500000, "Price must be under 50000 "),
     description: yup
       .string()
       .required("description is required")

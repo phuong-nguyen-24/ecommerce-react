@@ -1,18 +1,17 @@
-
 import { styled, useTheme } from "@mui/material/styles";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Navbar from "../components/Navbar";
 import Sidebar, { DrawerHeader } from "../components/Sidebar";
-import { useState } from "react";
-import { Outlet } from "react-router-dom";
-
-
-
+import { useContext, useState } from "react";
+import { Navigate, Outlet } from "react-router-dom";
+import { Replay } from "@mui/icons-material";
+import { AuthContext } from "../../auth/context/AuthProvider";
 
 export default function RootLayout() {
-  
   const [open, setOpen] = useState(false);
+
+  const { onLogout } = useContext(AuthContext);
 
   const handleDrawerOpen = () => {
     setOpen(true);
@@ -28,7 +27,7 @@ export default function RootLayout() {
       <Sidebar open={open} onDrawerClose={handleDrawerClose} />
       <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
         <DrawerHeader />
-       <Outlet />
+        <Outlet />
       </Box>
     </Box>
   );
