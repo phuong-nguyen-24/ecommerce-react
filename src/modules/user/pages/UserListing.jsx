@@ -1,10 +1,26 @@
-import { Avatar, Box, CardMedia, Stack } from "@mui/material";
+import { Avatar, Box, CardMedia, MenuItem, Select, Stack } from "@mui/material";
 import { DataGrid, GridToolbar } from "@mui/x-data-grid";
 import { useQuery } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
 import supabase from "../../../config/supbase";
+import RHFSelect from "../../common/components/RHFSelect";
 import ProductLoading from "../../product/components/ProductLoading";
 
 export default function UserListing() {
+  const {
+    register,
+    handleSubmit,
+    watch,
+    reset,
+    control,
+    formState: { errors },
+  } = useForm({
+    defaultValues: {
+      role: "",
+      role_id: "",
+    },
+  });
+
   const {
     isLoading,
     data: users,
@@ -20,9 +36,17 @@ export default function UserListing() {
     },
   });
 
-  if (isLoading) return <ProductLoading />;
+  const {
+    isLoading: IsRoleLoading,
+    data: Roles,
+    error: ErrorRole,
+  } = useQuery({
+    queryKey: ["roles"],
+    queryFn: () => supabase.from("role").select(),
+    select: (res) => res.data,
+  });
 
-  console.log(users);
+  if (isLoading) return <ProductLoading />;
 
   const gridData = {
     columns: [
@@ -53,6 +77,15 @@ export default function UserListing() {
       {
         field: "role",
         headerName: "Role",
+        availableAggregationFunctions(Roles) {
+          return (
+            <RHFSelect name="role_id" label="" control={control}>
+              {Roles.map((role) => (
+                <MenuItem value={role.id}>{role.name}</MenuItem>
+              ))}
+            </RHFSelect>
+          );
+        },
       },
       {
         field: "created_at",
@@ -62,6 +95,7 @@ export default function UserListing() {
     ],
 
     rows: users,
+    Roles,
   };
 
   return (
